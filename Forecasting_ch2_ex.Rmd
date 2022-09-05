@@ -1,0 +1,391 @@
+---
+title: "Forecasting Ch.2 Ex"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+. 
+```{r}
+library(fma)
+library(fpp2)
+library(forecast)
+library(readxl)
+library(GGally)
+```
+
+
+1) Use the help function to explore what the series gold, woolyrnq and gas represent.
+
+a) Use autoplot() to plot each of these in separate plots.
+
+```{r}
+autoplot(gold)
+```
+
+
+```{r}
+autoplot(woolyrnq)
+```
+
+
+```{r}
+autoplot(gas)
+```
+b) What is the frequency of each series? Hint: apply the frequency() function.
+
+```{r}
+frequency(gold)
+frequency(woolyrnq)
+frequency(gas)
+```
+
+A Frequency of gold is 1, which tells us that there do not exists seasonal patterns in the data. 
+
+A frequency of 4 in the woolyrnq dataset suggests seasonality that repeats every year with each quarter being an element in a given period
+
+A frequency of gas is 12 tells us that seasonality occurs every year, with 12 elements in the period defining a single "season"
+
+c) Use which.max() to spot the outlier in the gold series. Which observation was it?
+
+```{r}
+i <- which.max(gold)
+i
+gold[i]
+```
+
+Observation 770 was the outlier with a value of 593.7, this is confirmed by looking at the graph above
+
+2a) You can read the data into R with the following script
+
+```{r}
+tute1 <- read.csv('tute1.csv', header=T)
+head(tute1, n = 10)
+```
+
+2b) Convert to Time Series
+
+```{r}
+mytimeseries <- ts(tute1[,-1], start=1981, frequency=4)
+autoplot(mytimeseries, facets=T) #facets=T seperates time series into seperate panels
+```
+```{r}
+
+ggAcf(tute1[-1])
+```
+From the diagonals it looks like we have a seasonality with a period of 4 and no trends in the data
+
+3a) 
+
+```{r}
+retaildata <- read_excel("retail.xlsx", skip=1)
+head(retaildata, n=6)
+```
+
+3b) 
+
+```{r}
+myts <- ts(retaildata[,"A3349873A"], frequency=12, start=c(1982,4)) #starts measurement in 1982 on time unit 4
+head(myts, n=9)
+```
+
+
+3c) 
+
+```{r}
+autoplot(myts)
+```
+
+From the autoplot we can see both a trend and seasonality. Trends looks fairly linear. From this graph alone it is difficult to confirm the seasonality period. 
+
+```{r}
+ggAcf(myts)
+```
+The ACF confirms a trend due to slow convergence toward 0. Additionally we can see that frequency should be 12 as there is seasonaility period occuring every year. 
+
+```{r}
+ggseasonplot(myts, year.labels = T)
+```
+The seasonal plot shows us details on the seasonality. In this case we can see a increases in March, with some exceptions, decreases in June, jumps from October and Novemember that seem to have increased in 2007, 2012, 2013. Finally, from November to Decemeber we can see that 2007, 2012, and 2013 all have similar behavor that is distinct from the other years. 
+```{r}
+gglagplot(myts)
+```
+
+
+```{r}
+ggsubseriesplot(myts)
+```
+
+Through the subseries plot we can see fairly weak seasonality in the first couple of months. This is because the means of each element are close to each other which suggests the effect of these months on the response is similar. Seasonality is shown more strongly in The latter half of the year. 
+
+4) 
+
+```{r}
+help(goog)
+```
+
+
+```{r}
+autoplot(goog) + 
+  labs(
+    x = 'Day',
+    y = "Closing Price",
+    title='GOOG Closing Stock Price'
+  )
+  
+  
+```
+
+
+4/5) 
+
+Writing Time Series
+```{r}
+autoplot(writing)
+```
+
+```{r}
+ggsubseriesplot(writing)
+```
+
+```{r}
+ggseasonplot(writing, year.labels=T)
+```
+
+For Writing, we see a positive trend with strong seasonality. 1977 was a little unusual in that we expect a local max around March with slight differences between Janurary and Feburary. However, in 1977 we notice a peak in February. Furthermore, While we see a year over year increase, 1975 and 1976 did not follow the trend. 
+
+
+Fancy
+```{r}
+autoplot(fancy)
+```
+
+```{r}
+ggsubseriesplot(fancy)
+```
+
+```{r}
+ggseasonplot(fancy, year.labels = T)
+```
+
+Overall the Fancy dataset shows a slight trend with increasing magnitudes. There is little noise occurring, which means the the seasonality remains fairly consistent. The only usual activity I observe is that December of 1990 remained similar to the 1989 in trend and magnitude unlike the others years which should increasing trend and magnitude.  
+
+a10
+
+```{r}
+help(a10)
+l <- labs(
+  title='Monthly Anti-diabetic Drug subsiby',
+  y = 'Monthly Gov Expenditure in Millions'
+)
+
+autoplot(a10) + l
+```
+
+```{r}
+ggsubseriesplot(a10) + l
+
+
+```
+
+```{r}
+ggseasonplot(a10, year.labels=T) + l
+```
+
+From the timeplot we see a trend, seasonality, with each season also having slight increasing magnitudes. 2007 was a little unusual in that the the rate of increase was larger. While 2008 is incomplete, we also notice a deviation from the trend in that there was no dip in April.
+
+h02
+
+```{r}
+help(h02)
+l <- labs(
+  title = "Monthly Corticosteriod Subsidy in Australia (1991-2008)",
+  y = "Expenditure in Millions"
+)
+
+autoplot(h02) + l
+```
+
+
+```{r}
+ggsubseriesplot(h02) + l
+```
+
+
+```{r}
+ggseasonplot(h02, year.labels=T) + l
+```
+
+In the h02 dataset we have a slight trend intially that then starts to taper off over the years.  2008 was a little unusual in that April saw an increase while other years had a decrease during this month. 
+
+
+6) 
+
+```{r}
+autoplot(hsales)
+```
+For Hsales we see both seasonality and cyclity. 
+
+```{r}
+ggAcf(hsales)
+```
+
+Because we see a fairly rapid decline in ACF, while there exists seasonality and cyclity, there does not exist a trend. 
+
+```{r}
+ggsubseriesplot(hsales)
+```
+
+The noisey subseries further supports cyclity
+
+```{r}
+ggseasonplot(hsales, year.labels=T)
+```
+
+```{r}
+gglagplot(hsales)
+```
+
+
+
+US Deaths
+
+```{r}
+autoplot(usdeaths)
+```
+
+We see little to no trend and seasonality. There does exist a little noise in that 1973 seems to be shiften up from the rest. 
+
+```{r}
+ggsubseriesplot(usdeaths)
+```
+subseries plot further confirms that 1973 was an outlier year in terms of magnitude
+
+```{r}
+ggseasonplot(usdeaths)
+```
+
+```{r}
+ggAcf(usdeaths)
+```
+```{r}
+gglagplot(usdeaths)
+```
+
+
+```{r}
+autoplot(bricksq)
+```
+
+We can observe trend and slight seasonality, this is best seen from the seasonal plot, which shows only sight changes across quarters
+
+```{r}
+ggsubseriesplot(bricksq)
+```
+```{r}
+ggseasonplot(bricksq, year.labels = T)
+```
+```{r}
+ggAcf(bricksq)
+```
+
+From the ACF we can confirm trend with seasonality every year
+
+```{r}
+gglagplot(bricksq)
+```
+
+```{r}
+autoplot(sunspotarea)
+```
+
+No trend with cycility. We do have increasing magnitudes up to a point. Based off of the ACF, the cycility period is about 10 years. 
+
+```{r}
+ggAcf(sunspotarea)
+```
+
+```{r}
+gglagplot(sunspotarea)
+```
+
+```{r}
+autoplot(gasoline)
+```
+
+the time plot itself reveals a trend and possible seasonality. Given the data it appears too noisey to determine the seasonality period. 
+
+```{r}
+ggseasonplot(gasoline, year.labels=T)
+```
+
+season plot is too noisey to clearly see seasonality, best to use ACF
+
+```{r}
+ggAcf(gasoline)
+```
+
+ACF supports trend and seasonality occuring every year. 
+
+```{r}
+gglagplot(gasoline)
+```
+
+7) 
+
+```{r}
+autoplot(arrivals, facets = T)
+```
+
+Seasonality between US and NZ seem similar. NZ, UK, and US follow similar trends. While Japan is similar, it has a starts to deviate from the trend of the other locations is the early 2000s. 
+
+```{r}
+ggpairs(as.data.frame(arrivals[,1:4]))
+```
+
+The scatterplot matrix confirms that US, UK, and NZ follow similar trends. With Japan having the weakest trend when compared to these 3 locations. 
+
+```{r}
+ggseasonplot(arrivals[,c('Japan')], year.labels = T)
+ggseasonplot(arrivals[,c('US')], year.labels = T)
+ggseasonplot(arrivals[,c('UK')], year.labels = T)
+ggseasonplot(arrivals[,c('NZ')], year.labels = T)
+```
+
+In Japan, US, and UK we see dips in arrivals in between Q1 and Q2, NZ is different in that it actually sees an increase between Q1 and Q2. They all see increases between Q2 and Q3, particulary Japan,  however, Japan and NZ see declines between Q3 and Q4. 
+
+```{r}
+ggsubseriesplot(arrivals[,c('Japan')])
+ggsubseriesplot(arrivals[,c('US')])
+ggsubseriesplot(arrivals[,c('UK')])
+ggsubseriesplot(arrivals[,c('NZ')])
+```
+
+9.
+
+```{r}
+mypigs <- window(fma::pigs, start=1990)
+autoplot(mypigs)
+```
+
+hard to tell if seasonality actually exists
+
+```{r}
+ggAcf(mypigs)
+```
+
+Because multiple time-lags exceed the threshold, there likely exists temporal dependency. This violates the definition of white noise as it needs to be i.i.d
+
+
+10
+
+```{r}
+ddj <- diff(dj)
+autoplot(ddj)
+ggAcf(ddj)
+```
+
+The time plot suggests no trend. Unclear from the time plot alone if there exists seasonality. The ACF suggests the the difference is white noise. This is because 95% of the data lie below the threshold. 
+
+
+
