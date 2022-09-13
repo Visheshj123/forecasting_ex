@@ -1,0 +1,361 @@
+---
+title: "Forecasting Ch.3 Exercises"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+```{r}
+library(forecast)
+library(gridExtra)
+library(expsmooth)
+library(readxl)
+library(fpp2)
+```
+
+1) 
+```{r}
+p1 <- autoplot(usnetelec)
+lambda <- BoxCox.lambda(usnetelec)
+p2 <- autoplot(BoxCox(usnetelec, lambda))
+grid.arrange(p1,p2, nrow=1)
+
+```
+
+```{r}
+lambda <- BoxCox.lambda(usgdp)
+p1 <- autoplot(usgdp)
+p2 <- autoplot(BoxCox(usgdp, lambda))
+grid.arrange(p1,p2, nrow=1)
+```
+
+```{r}
+lambda <- BoxCox.lambda(mcopper)
+p1 <- autoplot(mcopper)
+p2 <- autoplot(BoxCox(mcopper, lambda))
+grid.arrange(p1,p2, nrow=1)
+```
+```{r}
+lambda <- BoxCox.lambda(enplanements)
+p1 <- autoplot(enplanements)
+p2 <- autoplot(BoxCox(enplanements, lambda))
+grid.arrange(p1,p2, nrow=1)
+```
+
+
+2) 
+
+```{r}
+p1 <- autoplot(cangas)
+lambda <- BoxCox.lambda(cangas)
+p2 <- autoplot(BoxCox(cangas, lambda))
+grid.arrange(p1,p2, nrow=1)
+```
+The reason boxcox has a limited effect on cangas data is because we don't have a consistent increase/decrease in seaonslity magnitudes over time. Therefore a log-like transform nor a power-like transform will help reduce the seasonality magnitudes.
+
+3) 
+
+```{r}
+retaildata <- read_excel("retail.xlsx", skip=1)
+myts <- ts(retaildata[,"A3349873A"], frequency=12, start=c(1982,4))
+autoplot(myts)
+```
+Because we have increasing magnitudes over time I suggest we use a log-like transformation. This means using lambda values between [0.0, 1) in order to condense larger values of the reponse and maintain the smaller ones. In particular I would pick 0.2 since we have large differences in magnitude in the beggining as compared to the end. We therefore need to harsly restrict the range of the latter values. 
+
+```{r}
+(lambda <- BoxCox.lambda(myts))
+autoplot(BoxCox(myts, lambda))
+```
+
+4)
+
+```{r}
+p1 <- autoplot(dole)
+p2 <- autoplot(usdeaths)
+p3 <- autoplot(bricksq)
+grid.arrange(p1,p2,p3, nrow=2, ncol=2)
+```
+```{r}
+help(dole)
+```
+
+Dole doesn't have an increasing or decreasing seasonality magnitudes and therefore will likely not benefit from mathemtical transformations. However, dole represents the total number of people on unemployment benefits each month. Because there are more days in some months than others, a more far comparison would be to adjust for these differences. Therfore we can do avereage number of people on unemployment in a given day to better understand the trends. 
+
+```{r}
+df <- cbind(Monthly = dole, 
+            DailyAverage = dole/monthdays(dole))
+autoplot(df, facet=T)
+```
+
+usdeaths has slight differences in seasonal magnitude however it does not show increasing or decreasing magnitudes over time. Therefore BoxCox transformations may help only slightly. however, because usdeaths represents the total number of deaths in a month, it will benefit from calendar adjustments. 
+
+```{r}
+df <- cbind(monthly = usdeaths, 
+            DailyAverage = usdeaths/monthdays(usdeaths))
+
+autoplot(df, facet=T)
+```
+
+bricksq shows increasing seasonal magnitudes overtime and would therefore benefit from mathemetical transformations. Furhtermore, some quarters have more days than others. Therefore it'd be best to get the daily average in every quarter to make the data more comparable. 
+
+
+
+```{r}
+lambda <- BoxCox.lambda(bricksq)
+df <- cbind(Quarterly <- bricksq, 
+            DailyAverage <- BoxCox(bricksq, lambda)/monthdays(bricksq))
+autoplot(df, facet=T)
+```
+
+5) 
+
+```{r}
+beer <- window(ausbeer, start=1992)
+fc <- snaive(beer)
+autoplot(fc)
+res <- residuals(fc)
+autoplot(res)
+```
+
+```{r}
+checkresiduals(res)
+```
+```{r}
+Box.test(res, lag=8, type="Lj")
+```
+
+From the Box-Ljung test we reject the null that the residuals lack autocorrelation. This is therefore not white noise. 
+
+6) 
+
+```{r}
+autoplot(WWWusage)
+m <- naive(WWWusage)
+res <- residuals(m)
+checkresiduals(res)
+
+```
+
+From the ACF we can instantly tell that we do not have white noise. However, it appears we have normally distributed residuals. We can further confirm autocorrelation using the Box-Ljung test. 
+
+```{r}
+Box.test(res, type='Lj')
+```
+
+```{r}
+frequency(bricksq)
+checkresiduals(snaive(bricksq))
+```
+
+For the bricksq dataset we do not have white noise. 
+
+7) 
+
+a. True, Although not required, good methods should ideally have normally distributed residuals, this helps us with prediction intervals. Otherwise we have to rely on bootstrapping. 
+
+b. False, A model with small residuals will not necessarily have good forecasts. We could be overfitting the training set and not generalizing to the test set. however, a model with small residuals will have smaller prediction intervals. 
+
+c. False, MAPE is generally not reccomended as it becomes difficult to compare residuals across models or across different time series. A better alternative is MASE. 
+
+d. False, while this may help, it may be worth doing additional data transformations in order to acheive better models. 
+
+e. True, we are using models to help with forecasting. Therefore we should evaluate models based off of their ability to forecast. 
+
+8)
+
+a + b) 
+
+```{r}
+myts.train <- window(myts, end=c(2010,12))
+myts.test <- window(myts, start=2011)
+
+autoplot(myts) + 
+  autolayer(myts.train, series='Training') + 
+  autolayer(myts.test, series='Test')
+```
+
+8c)
+
+```{r}
+fc <- snaive(myts.train)
+accuracy(fc, myts.test)
+```
+
+```{r}
+(res <- checkresiduals(fc))
+```
+While residuals appear to be loosely normally distributed, there is correlation. We can improve our model considerably. 
+
+```{r}
+e <- na.omit(fc$residuals)
+e <- as.vector(x = e)
+qqnorm(e)
+```
+
+f) Data is highly sensitive to train/test split as the test split follows a different trend that the latter part of the training data, which snaive relies on. 
+
+
+9) 
+
+```{r}
+df <- visnights[, "QLDMetro"]
+train1 <- window(df, end=c(2015,4))
+train2 <- window(df, end=c(2014,4))
+train3 <- window(df, end=c(2013,4))
+
+autoplot(df) + 
+  autolayer(train1, series='train1') + 
+  autolayer(train2, series='train2') + 
+  autolayer(train3, series='train3')
+```
+
+
+```{r}
+
+fc1 <- snaive(train1, h=4)
+fc2 <- snaive(train2, h=4)
+fc3 <- snaive(train3, h=4)
+
+accuracy(fc1,window(df, start=2016))
+accuracy(fc2, window(df, start=2015, end=c(2016,0)))
+accuracy(fc3, window(df, start=2014, end=c(2015, 0)))
+```
+
+Training set 2 had the best MAPE, this is because the season of 2015 followed a similar distribution as the season of 2014. However for train1 and train2 there exists large differences between training and test set.
+
+10) 
+
+```{r}
+autoplot(dowjones)
+```
+```{r}
+fc <- rwf(dowjones, drift=T)
+autoplot(fc)
+```
+
+
+c) 
+
+```{r}
+
+autoplot(fc) + 
+  geom_line(aes(x = c(1, 78),
+                y = dowjones[c(1, 78)]), 
+            colour = "red")
+
+
+```
+
+
+d) 
+
+```{r}
+fc2 <- meanf(dowjones)
+fc3 <- naive(dowjones)
+autoplot(dowjones) + 
+  autolayer(fc, series='drift', PI=F) + 
+  autolayer(fc2, series='mean', PI=F) + 
+  autolayer(fc3, series='naive', PI=F)
+```
+Ideally we would like a testset or use cross validation to compare models. In the absence of these, we can intuitively see that the drift model capture the general trend the occurs in the training data. While this may be valuable for larger time horizons, for shorter ones I think its best to use naive model.
+
+
+11) 
+
+```{r}
+autoplot(ibmclose)
+```
+
+```{r}
+ggAcf(ibmclose)
+```
+From the acf plot we can see a very strong indicator of a trend with no seasonality. Its important to note that the trend in this data is not consistently increasing over this dataset. There exists multiple different trends occurring. 
+
+```{r}
+
+train <- window(ibmclose, end=300)
+test <- window(ibmclose, start=301)
+fc1 <- naive(train, h=69)
+fc2 <- meanf(train, h=69)
+fc3 <- rwf(train, h=69, drift=T)
+autoplot(ibmclose) + 
+  autolayer(fc1, PI=F, series='naive') + 
+  autolayer(fc2, PI=F, series='mean') + 
+  autolayer(fc3, PI=F, series='drift')
+```
+
+```{r}
+accuracy(fc1, test)
+accuracy(fc2, test)
+accuracy(fc3, test)
+```
+
+It appears the drift model outperformed the naive model on the test set. This is because the drift model was able to capture the trend in the testset. 
+
+```{r}
+checkresiduals(fc1)
+checkresiduals(fc3)
+```
+the residuals of the drift model resemble white noise. 
+
+
+
+
+12) 
+
+```{r}
+autoplot(hsales)
+```
+
+```{r}
+ggseasonplot(hsales, year.labels = T)
+```
+
+```{r}
+ggsubseriesplot(hsales)
+```
+
+```{r}
+
+df <- cbind(Monthly = hsales, 
+            DailyAverage = hsales/monthdays(hsales))
+
+df[,'DailyAverage']
+autoplot(df, facet=T)
+
+train <- window(df[,'DailyAverage'], end=c(1993, 12))
+test <- window(df[, 'DailyAverage'], start=1994)
+
+autoplot(df[, 'DailyAverage']) + 
+  autolayer(train, series='train') + 
+  autolayer(test, series='test')
+```
+```{r}
+fc1 <- snaive(train, h=length(test))
+fc2 <- rwf(train, drift=T, h=length(test))
+fc3 <- meanf(train, h=length(test))
+
+autoplot(df[, 'DailyAverage']) + 
+  autolayer(fc1, PI=F, series='naive') + 
+  autolayer(fc2, PI=F, series='drift') + 
+  autolayer(fc3, PI=F, series='mean')
+
+
+```
+
+```{r}
+accuracy(fc1, test)
+accuracy(fc2, test)
+accuracy(fc3,test)
+```
+snaive does the best
+
+```{r}
+checkresiduals(fc1)
+```
+
+snaive has correlation in residuals it is therefore not white noise. 
+
+
+
