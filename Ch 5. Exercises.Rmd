@@ -1,0 +1,344 @@
+---
+title: "Ch. 5 Exercises"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(fpp2)
+library(gridExtra)
+```
+
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+1)
+
+1a)
+```{r}
+daily20 <- head(elecdaily, 20)
+autoplot(daily20, facet=T)
+```
+From the time series plot we can see there seems to be a linear relationship between temperature and demand. We can further explore this by plotting the two features against each other
+
+```{r}
+daily20 %>% as.data.frame() %>%
+  ggplot(aes(x=Temperature, y=Demand)) + 
+  geom_point()
+
+```
+Once again we see a nice linear relationship, making this sutiable for regression. 
+
+```{r}
+m <- tslm(Demand ~ Temperature, data=daily20)
+summary(m)
+```
+from our model we can see a positive relationship. If we look back at the time series plot. We can see that in order to best fit temperature to demand, we need to stretch it in the horizontal direction. This equates to a positive slope for the model. This also intuitively makes sense as electricity demand should increase with higher temperatures as higher temperatures require AC units to consume power. 
+
+
+1b)
+
+```{r}
+data.frame(
+  res = m$residuals, 
+  fit = m$fitted.values
+) %>% ggplot(aes(x=fit, y=res)) + 
+  geom_point()
+
+```
+
+While there does not seem to be influential points, there does seem to be outliers in the Demand field. 
+
+```{r}
+checkresiduals(m)
+```
+There appears to be outliers at t=2. This is further corroborated by the time series plot which shows a spike in temperature will little to no change in demand. Futhermore our residuals poorly fit a normal distribution. We therefore expect poor prediciton intervals.
+
+1c)
+
+```{r}
+newdata <- data.frame(Temperature=c(15.0)) 
+(p.15 <- forecast(m, newdata))
+newdata <- data.frame(Temperature=c(35.0)) 
+(p.35 <- forecast(m, newdata))
+```
+
+
+```{r}
+daily20 %>%
+  as.data.frame() %>%
+  ggplot(aes(x=Temperature, y=Demand)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE)
+
+```
+Our model seems bias due to the outliers. However, do to the high R2, and the fact that our forecast is within the range of the training data, I think our forecast are reasonable. 
+
+```{r}
+elecdaily %>% as.data.frame() %>%
+  ggplot(aes(x=Temperature, y=Demand)) + 
+  geom_point()
+
+```
+When plotting the full dataset, we see a non-linear relationship between temperature and demand. This means our model did not capture the broader trend of the data, but rather, captured the relationship through a narrow window in time that happened to be linear. 
+ 
+ 2)
+ 
+```{r}
+autoplot(mens400)
+```
+a)
+This plot has some missing data but has a non-linear decreasing trend. with little to no seasonality. There also seems to be three distinctive knots in the data, which makes it well suited for piece-wise regression. 
+
+b)
+
+```{r}
+(m <- tslm(mens400 ~ trend))
+```
+
+```{r}
+
+autoplot(mens400) + 
+  autolayer(m$fitted.values, series='fitted')
+
+as.data.frame(mens400)
+```
+
+Based on our model the average rate of change over a year is going to be -0.258 seconds. 
+
+```{r}
+checkresiduals(m)
+```
+We do have white noise due to ACF plots. We don't have normal residuals, which will hurt our ability to have good prediction intervals. Additionally our outliers seem to be affecting our constant variance assumption. This will additional hurt our constant variance assumption. 
+
+```{r}
+#or just do h=1 for forecasting
+forecast(m, h=1)
+```
+The model predicts that the winning time is 42 seconds with a 95%  prediction interval of [39.55-44.53176]. This assumes we have constant, normal residuals which were used to estimate the variance. However, these assumptions are violated due to poor model fitting.
+
+3) 
+
+```{r}
+head(easter(ausbeer), n=16)
+```
+
+  We see a proportional split of when Easter fell with respect to the four quarters in a year. This can serve as a dummy variable to explain the effect of Easter on the response.
+  
+5) 
+
+a)
+```{r}
+autoplot(fancy)
+```
+From the time plot we see the seasonal affects caused in March and December. This seasonal affect remains consisteant, although with increasing magnitudes overtime. This makes sense as the shop expanded its permises and products. One potential point of unusual behavior is when 1993 where after March, we didn't see a steady increase until December, it appears there was another source of increase in sales around the July time frame. The same affect can bee seen in 1992 where after Match there was a breif dip followed by a sharp incline in sales up until December. 
+
+
+b) If we were to fit the data, we would achieve non-constant variance. This is due to the increasing magnitudes over time. A log transformation on the response could help even out the magnitudes since the log operation condenses extreme values. 
+
+```{r}
+autoplot(log(fancy))
+```
+c) 
+
+```{r}
+#surfing festival dummy variable
+#create ts object with the dummy variable, so 1 predictors tied to the same timeline everytime the month is march
+
+
+# 0 if 
+l <- length(fancy)/frequency(fancy) #number of seasons
+
+#create a column vector where 1 represents the month of March 
+data <- append(c(0,0,0,0,0,0,0,0,0,0,0,0), 
+                rep(c(0,0,1,0,0,0,0,0,0,0,0,0),l-1))
+m <- tslm(fancy ~ trend + season + data, lambda=0, biasadj = T)
+
+summary(m)
+```
+
+
+
+```{r}
+autoplot(fancy) + 
+  autolayer(m$fitted.values)
+```
+
+
+```{r}
+
+p1 <- data.frame(
+  fit = as.vector(m$fitted.values), 
+  res = as.vector(m$residuals)
+) %>% ggplot(aes(x=fit, y=res)) + 
+  geom_point()
+
+p2 <- autoplot(m$residuals)
+
+grid.arrange(p1,p2, nrow=2)
+
+```
+
+The residuals, when plotting against time, are not white noise. However, when plotting against the fitted values, seem to have a mean of 0 and an almost constant variance. 
+
+5e)
+
+```{r}
+t <- time(m$residuals)
+t <- m$residuals
+data.frame(
+  res = as.vector(m$residuals),
+  m = factor(round(time(t) - floor(t), digits=3))
+) %>% ggplot(aes(x=m, y=res)) + 
+  geom_boxplot()
+
+
+factor(round(time(t) - floor(t), digits=3))
+
+round(time(t) - floor(t), digits=3)
+
+floor(t)
+```
+
+  We ideally want constant variance when plotting over time, and that should represent as constant variance when plotting over months with a mean of 0. We seem to have non-constant variance for a given month. This may introduce problems when doing prediction intervals. 
+  
+f)
+  
+```{r}
+m$coefficients
+```
+  
+Because March and our dummy variable are nearly perfectly correlated, the overall seasonal effect of March is much higher than the other parts. The second most important season is December followed by November. Furthermore, the model has a positive trend. 
+
+g) 
+
+The Breush-Godfrey tests says we reject the null hypothesis. Therefore our residuals are not white noise. This suggests there still exist temporal dependency with our residuals, which means we may need to obtain a better model.
+
+h)
+
+```{r}
+
+#is trend and season implied because it is deterministic? If so I should be able to 
+#just supply the data field values and be good 
+fcast <- forecast(
+  m,
+  newdata = data.frame(
+    data = rep(c(0,0,1,0,0,0,0,0,0,0,0,0), 3)
+  )
+)
+
+autoplot(fancy) + 
+  autolayer(fcast)
+```
+
+6)
+
+```{r}
+gas <- window(gasoline, end=2005) #exclusive counting
+autoplot(gas)
+```
+
+6a)
+
+```{r}
+
+p <- autoplot(gas)
+for (k in seq(21,3, -3)){
+  t <- tslm(gas  ~ trend + fourier(gas, K=k))
+  p <- p + autolayer(t$fitted.values, series=as.character(k))
+}
+p
+```
+We seem to capture the trend well. There exists some seasons where the peaks remain for a couple of weeks longer than other seasons. Fourier did not capture this well. Furthermore it didn't seem to model the torughs well. Often times the predicted trough was not low enough to match the data. Overall, its modeling of seasonality was adequate. 
+
+We can see that the more terms we have, the better we fit the model 
+
+
+6b)
+```{r}
+df = data.frame(
+  K = c(),
+  CV = c()
+)
+
+for (k in seq(3,21,3)){
+  res <- CV(tslm(gas ~ trend + fourier(gas,K=k)))
+  df <- rbind(df, 
+        data.frame(K=k, CV = res['CV']))
+}
+
+df
+
+```
+
+6c) 
+
+```{r}
+
+checkresiduals(tslm(gas ~ trend + fourier(gas, K=12)))
+
+
+
+```
+
+6d) 
+
+```{r}
+m <- tslm(gas ~ trend + fourier(gas, K=12))
+t <- window(time(gas), start=2004)+1
+fc <- forecast(m, newdata=data.frame(fourier(t, K=12, h=52)))
+
+data.frame(fourier(t, K=12, h=10))
+
+autoplot(window(gasoline, start=2005, end=2006)) + 
+  autolayer(fc, series='forecast', PI=F)
+```
+
+
+The model did well in predicted the first half of the year. However, it couldn't predict the sudden drop in the Fall season. 
+
+7) 
+
+```{r}
+autoplot(huron)
+```
+
+We seem to have a non-linear trend with little to no seasonality. 
+
+7b)
+
+```{r}
+lin.model <- tslm(huron ~ trend)
+t <- time(huron)
+knot <- ts(pmax(0,t - 1915), start=1875)
+pw.model <- tslm(huron ~ t + knot)
+
+autoplot(huron) + 
+  autolayer(lin.model$fitted.values, series='linear model') + 
+  autolayer(pw.model$fitted.values, series='piece wise')
+
+```
+
+7c) 
+
+```{r}
+t.new <- t[length(t)] + seq(1,8)
+knot.new <- knot[length(knot)] + seq(1,8)
+newdata <- cbind(t = t.new, knot=knot.new) %>%
+  as.data.frame()
+
+f.lin <- forecast(lin.model, newdata = newdata[,c('t')])
+f.pw <- forecast(pw.model, newdata = newdata)
+
+p1 <- autoplot(huron) + 
+  autolayer(f.lin, series='linear forecast')
+
+p2 <- autoplot(huron) + 
+  autolayer(f.pw, series='piece-wise forecast')
+
+grid.arrange(p1,p2)
+
+```
+They both yield similar intervals, however the piece-wise model better capture the change in trend over time. Neither of these forecast are likely and overall the model is a poor fit. This can also be seen by the large prediction interval for both. 
+
+
